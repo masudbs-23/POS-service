@@ -3,6 +3,8 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
+const { pool } = require("./db");
+
 const authRoutes = require("./routes/auth.routes");
 const productRoutes = require("./routes/product.routes");
 const orderRoutes = require("./routes/order.routes");
@@ -32,4 +34,20 @@ app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`POS API listening on http://localhost:${port}`);
 });
+
+async function checkDbConnection() {
+  try {
+    const r = await pool.query("SELECT 1 AS ok");
+    // eslint-disable-next-line no-console
+    console.log("Database connected:", r.rows?.[0]?.ok === 1);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("Database connection failed. Check DATABASE_URL in .env");
+    // eslint-disable-next-line no-console
+    console.error(err?.message || err);
+    process.exit(1);
+  }
+}
+
+checkDbConnection();
 

@@ -37,6 +37,46 @@ async function registerSalesman(req, res, next) {
   }
 }
 
+async function registerAdmin(req, res, next) {
+  try {
+    const bootstrapSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
+    if (bootstrapSecret) {
+      const provided = String(req.headers["x-admin-bootstrap-secret"] || "");
+      if (provided !== bootstrapSecret) {
+        return res.status(403).json({ message: "Invalid bootstrap secret" });
+      }
+    }
+
+    // allow only if no admin exists yet
+    const adminExists = await pool.query(
+      `SELECT 1 FROM users WHERE role = 'admin' LIMIT 1`
+    );
+    if (adminExists.rowCount > 0) {
+      return res.status(409).json({ message: "Admin already exists" });
+    }
+
+    const { name, email, password } = req.body || {};
+    assertRequiredString(name, "name");
+    assertRequiredString(email, "email");
+    assertRequiredString(password, "password");
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role)
+       VALUES ($1, $2, $3, 'admin')
+       RETURNING id, name, email, role, created_at`,
+      [name.trim(), email.trim().toLowerCase(), password_hash]
+    );
+
+    res.status(201).json({ user: result.rows[0] });
+  } catch (err) {
+    if (err && err.code === "23505") {
+      return res.status(409).json({ message: "Email already exists" });
+    }
+    return next(err);
+  }
+}
+
 async function login(req, res, next) {
   try {
     const { email, password } = req.body || {};
@@ -70,5 +110,5 @@ async function me(req, res) {
   res.json({ user: req.user });
 }
 
-module.exports = { registerSalesman, login, me };
+module.exports = { registerAdmin, registerSalesman, login, me };
 
