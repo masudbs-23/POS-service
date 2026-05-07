@@ -1,4 +1,5 @@
 const { pool } = require("../db");
+const { success } = require("../utils/response");
 
 async function bestSelling(req, res, next) {
   try {
@@ -20,7 +21,12 @@ async function bestSelling(req, res, next) {
       [safeLimit]
     );
 
-    res.json({ best_selling: result.rows });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "OK",
+      data: { best_selling: result.rows },
+    });
   } catch (err) {
     return next(err);
   }
@@ -36,7 +42,12 @@ async function salesSummary(req, res, next) {
        FROM orders o
        LEFT JOIN order_items oi ON oi.order_id = o.id`
     );
-    res.json({ analytics: result.rows[0] });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "OK",
+      data: { analytics: result.rows[0] },
+    });
   } catch (err) {
     return next(err);
   }
@@ -52,7 +63,12 @@ async function salesHistory(req, res, next) {
          COALESCE(SUM(CASE WHEN o.created_at >= now() - interval '30 days' THEN o.total_amount ELSE 0 END), 0)::numeric(12,2) AS monthly_sales
        FROM orders o`
     );
-    res.json({ sales: result.rows[0] });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "OK",
+      data: { sales: result.rows[0] },
+    });
   } catch (err) {
     return next(err);
   }

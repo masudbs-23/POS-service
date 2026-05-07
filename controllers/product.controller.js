@@ -4,6 +4,7 @@ const {
   assertPositiveNumber,
   assertNonNegativeInt,
 } = require("../utils/validation");
+const { success, error: sendError } = require("../utils/response");
 
 async function createProduct(req, res, next) {
   try {
@@ -26,7 +27,12 @@ async function createProduct(req, res, next) {
         image_url ? String(image_url).trim() : null,
       ]
     );
-    res.status(201).json({ product: result.rows[0] });
+    return success(res, {
+      status: 201,
+      code: "S201",
+      message: "Product created",
+      data: { product: result.rows[0] },
+    });
   } catch (err) {
     return next(err);
   }
@@ -50,7 +56,7 @@ async function getProducts(req, res, next) {
       `SELECT * FROM products ${whereSql} ORDER BY id DESC`,
       params
     );
-    res.json({ products: result.rows });
+    return success(res, { status: 200, code: "S200", message: "OK", data: { products: result.rows } });
   } catch (err) {
     return next(err);
   }
@@ -82,7 +88,7 @@ async function searchProducts(req, res, next) {
       `SELECT * FROM products ${whereSql} ORDER BY id DESC LIMIT 100`,
       params
     );
-    res.json({ products: result.rows });
+    return success(res, { status: 200, code: "S200", message: "OK", data: { products: result.rows } });
   } catch (err) {
     return next(err);
   }
@@ -93,8 +99,8 @@ async function getProductById(req, res, next) {
     const id = Number(req.params.id);
     const result = await pool.query(`SELECT * FROM products WHERE id = $1`, [id]);
     const product = result.rows[0];
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json({ product });
+    if (!product) return sendError(res, { status: 404, code: "E404", message: "Product not found" });
+    return success(res, { status: 200, code: "S200", message: "OK", data: { product } });
   } catch (err) {
     return next(err);
   }
@@ -143,7 +149,7 @@ async function updateProduct(req, res, next) {
     }
 
     if (fields.length === 0) {
-      return res.status(400).json({ message: "No fields to update" });
+      return sendError(res, { status: 400, code: "E400", message: "No fields to update" });
     }
 
     params.push(id);
@@ -155,8 +161,13 @@ async function updateProduct(req, res, next) {
     );
 
     const product = result.rows[0];
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json({ product });
+    if (!product) return sendError(res, { status: 404, code: "E404", message: "Product not found" });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "Product updated",
+      data: { product },
+    });
   } catch (err) {
     return next(err);
   }
@@ -170,8 +181,13 @@ async function deleteProduct(req, res, next) {
       [id]
     );
     const product = result.rows[0];
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json({ product });
+    if (!product) return sendError(res, { status: 404, code: "E404", message: "Product not found" });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "Product deleted",
+      data: { product },
+    });
   } catch (err) {
     return next(err);
   }
@@ -189,8 +205,13 @@ async function stockIn(req, res, next) {
       [qty, id]
     );
     const product = result.rows[0];
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.json({ product });
+    if (!product) return sendError(res, { status: 404, code: "E404", message: "Product not found" });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "Stock in successful",
+      data: { product },
+    });
   } catch (err) {
     return next(err);
   }
@@ -210,9 +231,18 @@ async function stockOut(req, res, next) {
     );
     const product = result.rows[0];
     if (!product) {
-      return res.status(400).json({ message: "Insufficient stock or product not found" });
+      return sendError(res, {
+        status: 400,
+        code: "E400",
+        message: "Insufficient stock or product not found",
+      });
     }
-    res.json({ product });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "Stock out successful",
+      data: { product },
+    });
   } catch (err) {
     return next(err);
   }

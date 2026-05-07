@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
 const { assertRequiredString } = require("../utils/validation");
+const { success, error: sendError } = require("../utils/response");
 
 function signToken(user) {
   return jwt.sign(
@@ -27,11 +28,16 @@ async function registerSalesman(req, res, next) {
       [name.trim(), email.trim().toLowerCase(), password_hash]
     );
 
-    res.status(201).json({ user: result.rows[0] });
+    return success(res, {
+      status: 201,
+      code: "S201",
+      message: "Salesman account created",
+      data: { user: result.rows[0] },
+    });
   } catch (err) {
     // duplicate email
     if (err && err.code === "23505") {
-      return res.status(409).json({ message: "Email already exists" });
+      return sendError(res, { status: 409, code: "E409", message: "Email already exists" });
     }
     return next(err);
   }
@@ -43,7 +49,7 @@ async function registerAdmin(req, res, next) {
     if (bootstrapSecret) {
       const provided = String(req.headers["x-admin-bootstrap-secret"] || "");
       if (provided !== bootstrapSecret) {
-        return res.status(403).json({ message: "Invalid bootstrap secret" });
+        return sendError(res, { status: 403, code: "E403", message: "Invalid bootstrap secret" });
       }
     }
 
@@ -52,7 +58,7 @@ async function registerAdmin(req, res, next) {
       `SELECT 1 FROM users WHERE role = 'admin' LIMIT 1`
     );
     if (adminExists.rowCount > 0) {
-      return res.status(409).json({ message: "Admin already exists" });
+      return sendError(res, { status: 409, code: "E409", message: "Admin already exists" });
     }
 
     const { name, email, password } = req.body || {};
@@ -68,10 +74,15 @@ async function registerAdmin(req, res, next) {
       [name.trim(), email.trim().toLowerCase(), password_hash]
     );
 
-    res.status(201).json({ user: result.rows[0] });
+    return success(res, {
+      status: 201,
+      code: "S201",
+      message: "Admin account created",
+      data: { user: result.rows[0] },
+    });
   } catch (err) {
     if (err && err.code === "23505") {
-      return res.status(409).json({ message: "Email already exists" });
+      return sendError(res, { status: 409, code: "E409", message: "Email already exists" });
     }
     return next(err);
   }
@@ -91,15 +102,20 @@ async function login(req, res, next) {
     );
 
     const user = result.rows[0];
-    if (!user) return res.status(401).json({ message: "Invalid email or password" });
+    if (!user) return sendError(res, { status: 401, code: "E401", message: "Invalid email or password" });
 
     const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) return res.status(401).json({ message: "Invalid email or password" });
+    if (!ok) return sendError(res, { status: 401, code: "E401", message: "Invalid email or password" });
 
     const token = signToken(user);
-    res.json({
-      token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "Login successful",
+      data: {
+        token,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      },
     });
   } catch (err) {
     return next(err);
@@ -107,7 +123,7 @@ async function login(req, res, next) {
 }
 
 async function me(req, res) {
-  res.json({ user: req.user });
+  return success(res, { status: 200, code: "S200", message: "OK", data: { user: req.user } });
 }
 
 module.exports = { registerAdmin, registerSalesman, login, me };

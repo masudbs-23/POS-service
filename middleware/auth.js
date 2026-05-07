@@ -1,10 +1,15 @@
 const jwt = require("jsonwebtoken");
+const { error: sendError } = require("../utils/response");
 
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
   const [scheme, token] = header.split(" ");
   if (scheme !== "Bearer" || !token) {
-    return res.status(401).json({ message: "Missing Authorization Bearer token" });
+    return sendError(res, {
+      status: 401,
+      code: "E401",
+      message: "Missing Authorization Bearer token",
+    });
   }
 
   try {
@@ -12,15 +17,21 @@ function requireAuth(req, res, next) {
     req.user = payload;
     return next();
   } catch {
-    return res.status(401).json({ message: "Invalid or expired token" });
+    return sendError(res, {
+      status: 401,
+      code: "E401",
+      message: "Invalid or expired token",
+    });
   }
 }
 
 function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.user) {
+      return sendError(res, { status: 401, code: "E401", message: "Unauthorized" });
+    }
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return sendError(res, { status: 403, code: "E403", message: "Forbidden" });
     }
     return next();
   };

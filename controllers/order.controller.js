@@ -1,5 +1,6 @@
 const { pool } = require("../db");
 const { assertRequiredString, assertNonNegativeInt } = require("../utils/validation");
+const { success, error: sendError } = require("../utils/response");
 
 function assertPaymentMethod(payment_method) {
   const allowed = new Set(["cash", "bkash", "nagad", "card"]);
@@ -128,17 +129,22 @@ async function createOrder(req, res, next) {
 
     await client.query("COMMIT");
 
-    res.status(201).json({
-      invoice: {
-        order_id: Number(order.id),
-        order_number: `ORD-${order.id}`,
-        seller: { id: req.user.id, name: req.user.name },
-        payment_method: order.payment_method,
-        date_time: order.created_at,
-        items: invoiceItems,
-        total: Number(order.total_amount),
-        discount: Number(order.discount),
-        total_before_discount: totalBeforeDiscount,
+    return success(res, {
+      status: 201,
+      code: "S201",
+      message: "Order created",
+      data: {
+        invoice: {
+          order_id: Number(order.id),
+          order_number: `ORD-${order.id}`,
+          seller: { id: req.user.id, name: req.user.name },
+          payment_method: order.payment_method,
+          date_time: order.created_at,
+          items: invoiceItems,
+          total: Number(order.total_amount),
+          discount: Number(order.discount),
+          total_before_discount: totalBeforeDiscount,
+        },
       },
     });
   } catch (err) {
@@ -176,7 +182,7 @@ async function getOrders(req, res, next) {
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
-    res.json({ orders: result.rows });
+    return success(res, { status: 200, code: "S200", message: "OK", data: { orders: result.rows } });
   } catch (err) {
     return next(err);
   }
@@ -195,9 +201,9 @@ async function getOrderById(req, res, next) {
       [id]
     );
     const order = orderRes.rows[0];
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (!order) return sendError(res, { status: 404, code: "E404", message: "Order not found" });
     if (!isAdmin && Number(order.seller_id) !== Number(req.user.id)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return sendError(res, { status: 403, code: "E403", message: "Forbidden" });
     }
 
     const itemsRes = await pool.query(
@@ -209,7 +215,12 @@ async function getOrderById(req, res, next) {
       [id]
     );
 
-    res.json({ order, items: itemsRes.rows });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "OK",
+      data: { order, items: itemsRes.rows },
+    });
   } catch (err) {
     return next(err);
   }
