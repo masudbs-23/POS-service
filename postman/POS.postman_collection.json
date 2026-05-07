@@ -1,0 +1,299 @@
+{
+  "info": {
+    "name": "POS API",
+    "_postman_id": "d2d8c5e1-6b0c-4d1c-9f5b-8b1f7c8a3f21",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "token", "value": "" },
+    { "key": "productId", "value": "1" },
+    { "key": "orderId", "value": "1" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /api/auth/login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('token', json.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/auth/me",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/auth/register (admin creates salesman)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Salesman 1\",\n  \"email\": \"salesman1@example.com\",\n  \"password\": \"salesman123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "POST /api/products (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Coca Cola\",\n  \"price\": 50,\n  \"quantity\": 100,\n  \"barcode\": \"1234567890\",\n  \"category\": \"Drinks\",\n  \"image_url\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.product?.id) { pm.collectionVariables.set('productId', String(json.product.id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/products/search?q=cola",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/search?q=cola",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "search"],
+              "query": [{ "key": "q", "value": "cola" }]
+            }
+          }
+        },
+        {
+          "name": "GET /api/products/:id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "PUT /api/products/:id (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"price\": 55,\n  \"quantity\": 120\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/products/:id/stock-in (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 10\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/stock-in",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}", "stock-in"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/products/:id/stock-out (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 5\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/stock-out",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}", "stock-out"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/products/:id (admin soft delete)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "POST /api/orders (multi item checkout)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"cash\",\n  \"discount\": 0,\n  \"items\": [\n    { \"product_id\": {{productId}}, \"quantity\": 2 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.invoice?.order_id) { pm.collectionVariables.set('orderId', String(json.invoice.order_id)); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/orders/:id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports (admin)",
+      "item": [
+        {
+          "name": "GET /api/reports/best-selling",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/best-selling",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "best-selling"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/reports/summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "summary"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/reports/sales-history",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/sales-history",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "sales-history"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+
