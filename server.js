@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 
 const { pool } = require("./db");
+const { success } = require("./utils/response");
 
 const authRoutes = require("./routes/auth.routes");
 const productRoutes = require("./routes/product.routes");
@@ -19,6 +20,10 @@ app.use(express.json({ limit: "2mb" }));
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/api/health", (req, res) => {
+  return success(res, { status: 200, code: "S200", message: "health", data: { ok: true } });
 });
 
 app.use("/api/auth", authRoutes);
