@@ -5,6 +5,7 @@ const {
   assertNonNegativeInt,
 } = require("../utils/validation");
 const { success, error: sendError } = require("../utils/response");
+const { uploadBufferToCloudinary } = require("../utils/cloudinaryUpload");
 
 async function createProduct(req, res, next) {
   try {
@@ -13,6 +14,14 @@ async function createProduct(req, res, next) {
     assertRequiredString(category, "category");
     const priceNum = assertPositiveNumber(price, "price");
     const qty = assertNonNegativeInt(quantity ?? 0, "quantity");
+
+    let finalImageUrl = image_url ? String(image_url).trim() : null;
+    if (req.file?.buffer) {
+      const uploaded = await uploadBufferToCloudinary(req.file.buffer, {
+        folder: "pos/products",
+      });
+      finalImageUrl = uploaded?.secure_url || uploaded?.url || finalImageUrl;
+    }
 
     const result = await pool.query(
       `INSERT INTO products (name, price, quantity, barcode, category, image_url)
@@ -24,7 +33,7 @@ async function createProduct(req, res, next) {
         qty,
         barcode ? String(barcode).trim() : null,
         category.trim(),
-        image_url ? String(image_url).trim() : null,
+        finalImageUrl,
       ]
     );
     return success(res, {
@@ -38,10 +47,40 @@ async function createProduct(req, res, next) {
   }
 }
 
+async function uploadProductImage(req, res, next) {
+  try {
+    if (!req.file?.buffer) {
+      return sendError(res, { status: 400, code: "E400", message: "Missing image file" });
+    }
+    const uploaded = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "pos/products",
+    });
+    const imageUrl = uploaded?.secure_url || uploaded?.url || null;
+    if (!imageUrl) {
+      return sendError(res, { status: 502, code: "E502", message: "Image upload failed" });
+    }
+    return success(res, {
+      status: 201,
+      code: "S201",
+      message: "Image uploaded",
+      data: { image_url: imageUrl, public_id: uploaded?.public_id || null },
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function getProducts(req, res, next) {
   try {
     const includeDeleted = String(req.query.include_deleted || "false") === "true";
     const lowStockThreshold = req.query.low_stock ? Number(req.query.low_stock) : null;
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const perPage = req.query.per_page ? Number(req.query.per_page) : 10;
+
+    if (!Number.isInteger(page) || page <= 0) return sendError(res, { status: 400, code: "E400", message: "page must be a positive integer" });
+    if (!Number.isInteger(perPage) || perPage <= 0) return sendError(res, { status: 400, code: "E400", message: "per_page must be a positive integer" });
+    const limit = Math.min(perPage, 100);
+    const offset = (page - 1) * limit;
 
     const where = [];
     const params = [];
@@ -52,11 +91,30 @@ async function getProducts(req, res, next) {
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+    const countRes = await pool.query(`SELECT COUNT(*)::bigint AS total FROM products ${whereSql}`, params);
+    const total = Number(countRes.rows?.[0]?.total || 0);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    const listParams = [...params, limit, offset];
     const result = await pool.query(
-      `SELECT * FROM products ${whereSql} ORDER BY id DESC`,
-      params
+      `SELECT * FROM products ${whereSql} ORDER BY id DESC LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+      listParams
     );
-    return success(res, { status: 200, code: "S200", message: "OK", data: { products: result.rows } });
+
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "OK",
+      data: {
+        products: result.rows,
+        pagination: {
+          page,
+          per_page: limit,
+          total,
+          total_pages: totalPages,
+        },
+      },
+    });
   } catch (err) {
     return next(err);
   }
@@ -250,6 +308,7 @@ async function stockOut(req, res, next) {
 
 module.exports = {
   createProduct,
+  uploadProductImage,
   getProducts,
   searchProducts,
   getProductById,

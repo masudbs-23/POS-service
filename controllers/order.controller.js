@@ -162,8 +162,17 @@ async function createOrder(req, res, next) {
 async function getOrders(req, res, next) {
   try {
     const isAdmin = req.user.role === "admin";
-    const limit = req.query.limit ? assertNonNegativeInt(Number(req.query.limit), "limit") : 50;
-    const offset = req.query.offset ? assertNonNegativeInt(Number(req.query.offset), "offset") : 0;
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const perPage = req.query.per_page ? Number(req.query.per_page) : 10;
+
+    if (!Number.isInteger(page) || page <= 0) {
+      return sendError(res, { status: 400, code: "E400", message: "page must be a positive integer" });
+    }
+    if (!Number.isInteger(perPage) || perPage <= 0) {
+      return sendError(res, { status: 400, code: "E400", message: "per_page must be a positive integer" });
+    }
+    const limit = Math.min(perPage, 100);
+    const offset = (page - 1) * limit;
 
     const params = [];
     let whereSql = "";
@@ -171,6 +180,13 @@ async function getOrders(req, res, next) {
       params.push(req.user.id);
       whereSql = `WHERE o.seller_id = $${params.length}`;
     }
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::bigint AS total FROM orders o ${whereSql}`,
+      params
+    );
+    const total = Number(countRes.rows?.[0]?.total || 0);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
     params.push(limit, offset);
 
     const result = await pool.query(
@@ -182,7 +198,20 @@ async function getOrders(req, res, next) {
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
-    return success(res, { status: 200, code: "S200", message: "OK", data: { orders: result.rows } });
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "OK",
+      data: {
+        orders: result.rows,
+        pagination: {
+          page,
+          per_page: limit,
+          total,
+          total_pages: totalPages,
+        },
+      },
+    });
   } catch (err) {
     return next(err);
   }

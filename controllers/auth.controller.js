@@ -43,6 +43,11 @@ async function registerSalesman(req, res, next) {
   }
 }
 
+// Dedicated endpoint: create ONLY salesman user
+async function createSalesman(req, res, next) {
+  return registerSalesman(req, res, next);
+}
+
 async function registerAdmin(req, res, next) {
   try {
     const bootstrapSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
@@ -126,5 +131,24 @@ async function me(req, res) {
   return success(res, { status: 200, code: "S200", message: "OK", data: { user: req.user } });
 }
 
-module.exports = { registerAdmin, registerSalesman, login, me };
+async function getSalesmen(req, res, next) {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, email, role, created_at
+       FROM users
+       WHERE role = 'salesman'
+       ORDER BY id DESC`
+    );
+    return success(res, {
+      status: 200,
+      code: "S200",
+      message: "OK",
+      data: { salesmen: result.rows },
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { registerAdmin, registerSalesman, createSalesman, login, me, getSalesmen };
 
